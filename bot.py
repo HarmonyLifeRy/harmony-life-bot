@@ -1,16 +1,34 @@
 import json
 import os
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = "8951020494:AAFiJiF5GhipghGGo3OJCIY_E6iVxF3dgHI"
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GROUP_ID = -1003812696742
 SCHEDULE_THREAD_ID = 773
 USERS_FILE = "users.json"
 SCHEDULE_FILE = "schedule.json"
+
+
+# Простой веб-сервер чтобы Replit не засыпал
+class KeepAlive(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Harmony Life Bot is running!")
+    def log_message(self, format, *args):
+        pass
+
+def run_server():
+    server = HTTPServer(("0.0.0.0", 8080), KeepAlive)
+    server.serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 
 
 def load_users():
@@ -83,13 +101,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await context.bot.send_photo(
             chat_id=user_id,
             photo=photo,
-            caption=(
-                "👋 Добро пожаловать в *Harmony Life ry*\\!\n\n"
-                "Мы — общественная организация в Каяани, "
-                "которая объединяет людей и помогает чувствовать себя дома в Финляндии 🌿\n\n"
-                "Выберите нужный раздел:"
-            ),
-            parse_mode="MarkdownV2",
+            caption="👋 Добро пожаловать в Harmony Life ry!\n\nМы — общественная организация в Каяани 🌿\n\nВыберите нужный раздел:",
             reply_markup=get_inline_keyboard()
         )
 
@@ -119,13 +131,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_id=schedule["message_id"]
                 )
             except Exception:
-                await update.message.reply_text(
-                    "Не удалось загрузить расписание. Попробуйте позже."
-                )
+                await update.message.reply_text("Не удалось загрузить расписание. Попробуйте позже.")
         else:
-            await update.message.reply_text(
-                "Расписание пока не опубликовано. Следите за обновлениями! 🌿"
-            )
+            await update.message.reply_text("Расписание пока не опубликовано. Следите за обновлениями! 🌿")
 
     elif text == "📞 Связаться":
         await update.message.reply_text(
